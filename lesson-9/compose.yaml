@@ -1,0 +1,61 @@
+services:
+  db:
+    image: todo_database
+    container_name: database
+    environment:
+      POSTGRES_DB=postgres
+      POSTGRES_USER=postgres
+      POSTGRES_PASSWORD=postgres
+    volumes:
+      - todo_db:/var/lib/postgresql/data
+    networks:
+      - todo_net
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready",  "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+
+  backend:
+    image: todo_backend
+    container_name: backend
+    environment:
+      HOST=database
+      PORT=5432
+      DB=postgres
+      DB_USERNAME=postgres
+      DB_PASSWORD=postgres
+    networks:
+      - todo_net
+    healthcheck:
+      test: ["CMD", "curl", "localhost:8000/test"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+    image: todo_nginx
+    container_name: frontend
+    networks:
+      - todo_net
+    ports:
+      - 80:80
+    volumes:
+      - ./nginx.conf:etc/nginx/nginx.conf:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+volumes:
+  todo_db:
+    name: todo_db
+
+networks:
+  todo_net:
+    name: todo_net
